@@ -21,7 +21,10 @@ CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Configuration
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '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')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
+if not OPENAI_API_KEY:
+    raise ValueError("OPENAI_API_KEY not found in environment variables. Please set it in .env file")
 
 # Initialize agents
 ae_detector = AdverseEventDetector(OPENAI_API_KEY)
