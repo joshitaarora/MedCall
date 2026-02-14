@@ -73,7 +73,7 @@ Respond in JSON format:
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a post-surgery appointment scheduling expert. Respond only with valid JSON. Consider impact on patient recovery."},
                     {"role": "user", "content": prompt}

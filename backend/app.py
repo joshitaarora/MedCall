@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import os
+from dotenv import load_dotenv
 import json
 import threading
 from datetime import datetime
@@ -15,6 +16,8 @@ from agents.appointment_agent import AppointmentAgent
 from agents.emergency_detector import EmergencyDetector
 from agents.sentiment_analyzer import SentimentMismatchAnalyzer
 from audio.processor import AudioProcessor
+
+load_dotenv() 
 
 app = Flask(__name__)
 CORS(app)
@@ -65,27 +68,63 @@ class CallSession:
 
 def process_audio_chunk_parallel(session_id, audio_data, transcript_text):
     """Process audio chunk with all agents in parallel"""
+    print(f"\n{'='*50}")
+    print(f"🔄 PARALLEL PROCESSING STARTED")
+    print(f"Session: {session_id}")
+    print(f"Transcript: {transcript_text[:100]}...")
+    print(f"{'='*50}\n")
+    
     session = active_sessions.get(session_id)
     if not session:
+        print(f"❌ Session {session_id} not found in parallel processing!")
         return
     
     session.add_transcript(transcript_text)
+    print(f"✅ Transcript added to session")
     
     results = {}
     threads = []
     
     # Create threads for parallel processing
     def run_ae_detection():
-        results['ae'] = ae_detector.analyze(transcript_text, session.transcript)
+        print("🔍 Starting AE detection...")
+        try:
+            results['ae'] = ae_detector.analyze(transcript_text, session.transcript)
+            print(f"✅ AE detection complete: {results['ae']}")
+        except Exception as e:
+            print(f"❌ AE detection error: {e}")
+            import traceback
+            traceback.print_exc()
     
     def run_appointment_check():
-        results['appointment'] = appointment_agent.analyze(transcript_text, session.transcript)
+        print("🔍 Starting appointment check...")
+        try:
+            results['appointment'] = appointment_agent.analyze(transcript_text, session.transcript)
+            print(f"✅ Appointment check complete: {results['appointment']}")
+        except Exception as e:
+            print(f"❌ Appointment check error: {e}")
+            import traceback
+            traceback.print_exc()
     
     def run_emergency_check():
-        results['emergency'] = emergency_detector.analyze(transcript_text, session.transcript)
+        print("🔍 Starting emergency check...")
+        try:
+            results['emergency'] = emergency_detector.analyze(transcript_text, session.transcript)
+            print(f"✅ Emergency check complete: {results['emergency']}")
+        except Exception as e:
+            print(f"❌ Emergency check error: {e}")
+            import traceback
+            traceback.print_exc()
     
     def run_sentiment_analysis():
-        results['sentiment'] = sentiment_analyzer.analyze(transcript_text, audio_data, session.transcript)
+        print("🔍 Starting sentiment analysis...")
+        try:
+            results['sentiment'] = sentiment_analyzer.analyze(transcript_text, audio_data, session.transcript)
+            print(f"✅ Sentiment analysis complete: {results['sentiment']}")
+        except Exception as e:
+            print(f"❌ Sentiment analysis error: {e}")
+            import traceback
+            traceback.print_exc()
     
     # Start all agents in parallel
     threads = [
@@ -95,68 +134,98 @@ def process_audio_chunk_parallel(session_id, audio_data, transcript_text):
         threading.Thread(target=run_sentiment_analysis)
     ]
     
+    print("🚀 Launching 4 parallel threads...")
     for thread in threads:
         thread.start()
     
+    print("⏳ Waiting for threads to complete...")
     for thread in threads:
         thread.join()
     
+    print("✅ All threads complete!")
+    print(f"Results: {results}")
+    
     # Process results and emit alerts
+    print("📤 Emitting results to frontend...")
     handle_analysis_results(session_id, results)
+    print("✅ Results emitted!")
 
 
 def handle_analysis_results(session_id, results):
     """Handle results from parallel agents and emit alerts"""
+    print(f"\n{'='*50}")
+    print(f"📊 HANDLING ANALYSIS RESULTS")
+    print(f"Session: {session_id}")
+    print(f"{'='*50}\n")
+    
     session = active_sessions.get(session_id)
     if not session:
+        print(f"❌ Session not found in handle_analysis_results!")
         return
     
     # Adverse Event Detection
-    if results.get('ae') and results['ae']['detected']:
+    if results.get('ae') and results['ae'].get('detected'):
+        print("🔴 AE Alert - Creating and emitting...")
         alert = session.add_alert(
             'adverse_event',
             results['ae']['message'],
             'high',
-            results['ae'].get('action')
+            results['ae'].get('recommended_action')
         )
+        print(f"Alert created: {alert}")
+        print(f"Emitting to room: {session_id}")
         socketio.emit('alert', alert, room=session_id)
+        print("✅ AE Alert emitted!")
     
     # Appointment Issues
-    if results.get('appointment') and results['appointment']['issue_detected']:
+    if results.get('appointment') and results['appointment'].get('issue_detected'):
+        print("📅 Appointment Alert - Creating and emitting...")
         alert = session.add_alert(
             'appointment',
             results['appointment']['message'],
             'medium',
             results['appointment'].get('suggested_action')
         )
+        print(f"Alert created: {alert}")
+        print(f"Emitting to room: {session_id}")
         socketio.emit('alert', alert, room=session_id)
+        print("✅ Appointment Alert emitted!")
     
     # Emergency Detection
-    if results.get('emergency') and results['emergency']['is_emergency']:
+    if results.get('emergency') and results['emergency'].get('is_emergency'):
+        print("🚨 Emergency Alert - Creating and emitting...")
         alert = session.add_alert(
             'emergency',
             results['emergency']['message'],
             'critical',
             results['emergency'].get('action')
         )
+        print(f"Alert created: {alert}")
+        print(f"Emitting to room: {session_id}")
         socketio.emit('alert', alert, room=session_id)
+        print("✅ Emergency Alert emitted!")
     
-    # Sentiment Mismatch (potential danger)
-    if results.get('sentiment') and results['sentiment']['mismatch_detected']:
+    # Sentiment Mismatch
+    if results.get('sentiment') and results['sentiment'].get('mismatch_detected'):
+        print("🎭 Sentiment Alert - Creating and emitting...")
         alert = session.add_alert(
             'sentiment_mismatch',
             results['sentiment']['message'],
             'high',
-            results['sentiment'].get('action')
+            results['sentiment'].get('recommended_action')
         )
+        print(f"Alert created: {alert}")
+        print(f"Emitting to room: {session_id}")
         socketio.emit('alert', alert, room=session_id)
+        print("✅ Sentiment Alert emitted!")
     
     # Send transcript update
+    print("📝 Emitting transcript update...")
     socketio.emit('transcript_update', {
         'text': session.transcript[-1]['text'],
         'timestamp': session.transcript[-1]['timestamp']
     }, room=session_id)
-
+    print("✅ Transcript update emitted!")
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -237,30 +306,68 @@ def handle_disconnect():
 @socketio.on('join_session')
 def handle_join_session(data):
     session_id = data.get('session_id')
+    print(f"\n{'='*50}")
+    print(f"🔗 JOIN SESSION REQUEST")
+    print(f"Session ID: {session_id}")
+    print(f"Socket ID: {request.sid}")
+    print(f"{'='*50}\n")
+    
     if session_id in active_sessions:
-        # Join the room for this session
+        print(f"✅ Session found, joining room...")
+        # Join the room for this session - THIS IS CRITICAL!
+        from flask_socketio import join_room
+        join_room(session_id)
+        print(f"✅ Joined room: {session_id}")
         emit('joined', {'session_id': session_id})
+        print(f"✅ Sent 'joined' confirmation")
+    else:
+        print(f"❌ Session {session_id} not found!")
+        print(f"Available sessions: {list(active_sessions.keys())}")
 
 
 @socketio.on('audio_chunk')
 def handle_audio_chunk(data):
     """Handle incoming audio chunks for real-time processing"""
+    print("=" * 50)
+    print("🎤 AUDIO CHUNK RECEIVED!")
+    print("=" * 50)
+    
     session_id = data.get('session_id')
     audio_data = data.get('audio')
     
+    print(f"Session ID: {session_id}")
+    print(f"Audio data type: {type(audio_data)}")
+    print(f"Audio data size: {len(audio_data) if audio_data else 0} bytes")
+    
     if session_id not in active_sessions:
+        print(f"❌ ERROR: Session {session_id} not found!")
+        print(f"Available sessions: {list(active_sessions.keys())}")
         emit('error', {'message': 'Invalid session'})
         return
     
+    print("✅ Session found, starting transcription...")
+    
     # Transcribe audio
-    transcript_text = audio_processor.transcribe(audio_data)
+    try:
+        transcript_text = audio_processor.transcribe(audio_data)
+        print(f"📝 Transcription result: '{transcript_text}'")  # ADD THIS
+        print(f"📝 Transcription type: {type(transcript_text)}")  # ADD THIS
+        print(f"📝 Transcription length: {len(transcript_text) if transcript_text else 0}")  # ADD THIS
+    except Exception as e:
+        print(f"❌ TRANSCRIPTION ERROR: {e}")  # ADD THIS
+        import traceback
+        traceback.print_exc()  # ADD THIS
+        return
     
     if transcript_text:
+        print("✅ Starting parallel agent analysis...")
         # Process with parallel agents in background thread
         threading.Thread(
             target=process_audio_chunk_parallel,
             args=(session_id, audio_data, transcript_text)
         ).start()
+    else:
+        print("⚠️ No transcription generated - transcript_text is empty/None")  # ADD THIS
 
 
 if __name__ == '__main__':

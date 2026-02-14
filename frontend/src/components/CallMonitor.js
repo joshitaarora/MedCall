@@ -23,10 +23,12 @@ function CallMonitor({ sessionId, onAlert, onTranscriptUpdate }) {
     });
 
     socketRef.current.on('alert', (alert) => {
+      console.log('🔔 Alert received:', alert);
       onAlert(alert);
     });
 
     socketRef.current.on('transcript_update', (update) => {
+      console.log('📝 Transcript received:', update);
       onTranscriptUpdate(update);
     });
 

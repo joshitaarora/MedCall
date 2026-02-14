@@ -81,7 +81,7 @@ Be conservative - flag anything potentially serious. Better safe than sorry."""
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a clinical adverse event detection expert for post-surgery patients. Respond only with valid JSON. Be thorough and conservative - patient safety is paramount."},
                     {"role": "user", "content": prompt}

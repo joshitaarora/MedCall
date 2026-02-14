@@ -34,10 +34,12 @@ function AudioFileUpload({ sessionId, onAlert, onTranscriptUpdate }) {
         });
 
         socketRef.current.on('alert', (alert) => {
+          console.log('🔔 Alert received from upload:', alert);
           onAlert(alert);
         });
 
         socketRef.current.on('transcript_update', (update) => {
+          console.log('📝 Transcript from upload:', update);
           onTranscriptUpdate(update);
         });
       }

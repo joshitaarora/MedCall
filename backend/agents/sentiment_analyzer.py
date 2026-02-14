@@ -94,7 +94,7 @@ Be thorough but not alarmist. Genuine concern vs. normal recovery anxiety."""
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are an expert in detecting hidden distress, coercion, and danger signals in medical calls. Respond only with valid JSON. Balance thoroughness with avoiding false alarms."},
                     {"role": "user", "content": prompt}

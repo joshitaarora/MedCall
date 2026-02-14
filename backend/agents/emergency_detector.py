@@ -78,7 +78,7 @@ Be cautious - err on the side of escalation for patient safety."""
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are an emergency medical triage expert for post-surgery patients. Respond only with valid JSON. Patient safety is paramount - when in doubt, escalate."},
                     {"role": "user", "content": prompt}
