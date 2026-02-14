@@ -1,0 +1,106 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 1.5rem 2rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.logo h1 {
+  color: #667eea;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.tagline {
+  color: #666;
+  font-size: 0.95rem;
+  margin-left: 3.5rem;
+}
+
+.app-main {
+  flex: 1;
+  padding: 2rem;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+}
+
+.session-section {
+  grid-column: span 12;
+}
+
+.monitor-section {
+  grid-column: span 12 / span 6;
+}
+
+.dashboard-section {
+  grid-column: span 12 / span 6;
+}
+
+.transcript-section {
+  grid-column: span 12;
+}
+
+.app-footer {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 1.5rem 2rem;
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .monitor-section,
+  .dashboard-section {
+    grid-column: span 12;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: 1rem;
+  }
+
+  .logo h1 {
+    font-size: 1.5rem;
+  }
+
+  .tagline {
+    font-size: 0.85rem;
+    margin-left: 0;
+  }
+
+  .app-main {
+    padding: 1rem;
+  }
+
+  .content-grid {
+    gap: 1rem;
+  }
+}
