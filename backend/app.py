@@ -21,7 +21,7 @@ CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Configuration
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'your-api-key-here')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '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')
 
 # Initialize agents
 ae_detector = AdverseEventDetector(OPENAI_API_KEY)
@@ -263,4 +263,4 @@ def handle_audio_chunk(data):
 if __name__ == '__main__':
     print("🏥 MedCall Backend Starting...")
     print(f"📡 WebSocket server ready for real-time call monitoring")
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5001,use_reloader=False)

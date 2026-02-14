@@ -1,6 +1,6 @@
 """
-Emergency Detector Agent
-Identifies sudden health concerns requiring immediate attention
+Emergency Detector Agent - Post-Surgery Emergency Focus
+Identifies sudden health concerns requiring immediate medical attention
 """
 
 from openai import OpenAI
@@ -13,7 +13,7 @@ class EmergencyDetector:
         
     def analyze(self, current_text, conversation_history):
         """
-        Analyze text for emergency health situations
+        Analyze text for post-surgery emergencies requiring immediate action
         Returns: dict with detection results
         """
         
@@ -22,30 +22,42 @@ class EmergencyDetector:
             for entry in conversation_history[-5:]
         ])
         
-        prompt = f"""You are an emergency medical triage system. Analyze for life-threatening or urgent situations:
+        prompt = f"""You are an emergency medical triage system specializing in post-surgery complications.
 
-CRITICAL SIGNS (require immediate 911):
-- Chest pain, heart attack symptoms
-- Difficulty breathing, choking
-- Severe bleeding
-- Loss of consciousness
-- Stroke symptoms (facial drooping, slurred speech, arm weakness)
-- Severe allergic reactions
-- Suicidal ideation or self-harm
-- Severe injuries
+POST-SURGERY EMERGENCIES (require immediate action):
 
-URGENT SIGNS (require immediate medical attention):
-- High fever with concerning symptoms
-- Severe pain
+**CRITICAL (Call 911 / Go to ER immediately):**
+- Chest pain with difficulty breathing (PE risk)
+- Sudden severe headache, confusion, stroke symptoms
+- Severe allergic reaction (throat swelling, severe rash)
+- Heavy bleeding that won't stop
+- Severe abdominal pain (could indicate internal bleeding)
+- Can't breathe / severe shortness of breath
+- Loss of consciousness or extreme dizziness
+- Signs of blood clot: sudden leg swelling, pain, warmth, redness
+- Fever >103°F with confusion or severe symptoms
+- Suicidal ideation or self-harm thoughts
+
+**URGENT (Contact surgeon/doctor immediately - within 1 hour):**
+- Fever >101°F with chills
+- Wound opening or dehiscence
+- Signs of infection worsening rapidly
+- Uncontrolled pain despite medications
+- Inability to urinate for >8 hours after surgery
+- Severe vomiting preventing medication/fluid intake
 - Sudden vision changes
-- Severe headache
-- Persistent vomiting
-- Signs of infection
+- Numbness or tingling in extremities
+
+**MODERATE (Contact doctor within 24 hours):**
+- Low-grade fever (100-101°F)
+- Moderate wound drainage
+- Pain increasing gradually
+- Mild swelling at surgical site
 
 Recent conversation:
 {context}
 
-Current statement: {current_text}
+Current patient statement: {current_text}
 
 Respond in JSON format:
 {{
@@ -53,19 +65,25 @@ Respond in JSON format:
     "severity": "critical/urgent/moderate",
     "emergency_type": "type of emergency",
     "confidence": 0-100,
+    "post_surgery_complication": "specific complication type (PE, infection, DVT, etc.)",
+    "symptoms_duration": "how long symptoms present if mentioned",
+    "vital_signs_mentioned": {{"fever": "temp if mentioned", "pain_level": "0-10 if mentioned"}},
     "symptoms": ["list of concerning symptoms"],
-    "action": "immediate action to take (e.g., 'Call 911', 'Go to ER', 'Contact doctor immediately')",
-    "description": "brief explanation"
-}}"""
+    "action": "specific immediate action (Call 911, Go to ER, Call surgeon immediately, etc.)",
+    "time_sensitivity": "immediate/within 1 hour/within 24 hours",
+    "description": "brief clinical explanation"
+}}
+
+Be cautious - err on the side of escalation for patient safety."""
 
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are an emergency medical triage expert. Be cautious and err on the side of safety. Respond only with valid JSON."},
+                    {"role": "system", "content": "You are an emergency medical triage expert for post-surgery patients. Respond only with valid JSON. Patient safety is paramount - when in doubt, escalate."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.2,  # Lower temperature for more consistent emergency detection
+                temperature=0.2,
                 response_format={"type": "json_object"}
             )
             
@@ -73,8 +91,9 @@ Respond in JSON format:
             
             if result.get('is_emergency'):
                 severity = result.get('severity', 'urgent')
-                emoji = "🚨" if severity == "critical" else "⚠️"
-                result['message'] = f"{emoji} EMERGENCY DETECTED: {result.get('description', 'Immediate attention required')}"
+                emoji = "🚨" if severity == "critical" else "⚠️" if severity == "urgent" else "🔴"
+                action = result.get('action', 'Immediate medical attention required')
+                result['message'] = f"{emoji} POST-SURGERY EMERGENCY: {result.get('description', 'Immediate attention required')} - {action}"
             
             return result
             

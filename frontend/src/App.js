@@ -4,6 +4,7 @@ import CallMonitor from './components/CallMonitor';
 import AlertDashboard from './components/AlertDashboard';
 import TranscriptView from './components/TranscriptView';
 import SessionControl from './components/SessionControl';
+import AudioFileUpload from './components/AudioFileUpload';
 import { Activity } from 'lucide-react';
 
 function App() {
@@ -39,7 +40,7 @@ function App() {
             <Activity size={32} color="#fff" />
             <h1>MedCall</h1>
           </div>
-          <p className="tagline">AI-Powered Healthcare Call Monitoring</p>
+          <p className="tagline">AI-Powered Post-Surgery Call Monitoring</p>
         </div>
       </header>
 
@@ -57,13 +58,23 @@ function App() {
 
           {/* Call Monitor */}
           {isSessionActive && (
-            <div className="monitor-section">
-              <CallMonitor
-                sessionId={sessionId}
-                onAlert={handleNewAlert}
-                onTranscriptUpdate={handleTranscriptUpdate}
-              />
-            </div>
+            <>
+              <div className="monitor-section">
+                <CallMonitor
+                  sessionId={sessionId}
+                  onAlert={handleNewAlert}
+                  onTranscriptUpdate={handleTranscriptUpdate}
+                />
+              </div>
+
+              <div className="upload-section">
+                <AudioFileUpload
+                  sessionId={sessionId}
+                  onAlert={handleNewAlert}
+                  onTranscriptUpdate={handleTranscriptUpdate}
+                />
+              </div>
+            </>
           )}
 
           {/* Alert Dashboard */}
@@ -81,7 +92,7 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        <p>Parallel AI Agents: AE Detection | Appointment Management | Emergency Detection | Sentiment Analysis</p>
+        <p>Parallel AI Agents: Post-Surgery AE Detection | Appointment Management | Emergency Detection | Sentiment Analysis</p>
       </footer>
     </div>
   );

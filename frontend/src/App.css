@@ -57,6 +57,10 @@
   grid-column: span 12 / span 6;
 }
 
+.upload-section {
+  grid-column: span 6;
+}
+
 .dashboard-section {
   grid-column: span 12 / span 6;
 }

@@ -1,0 +1,74 @@
+.audio-file-upload {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.audio-file-upload h3 {
+  color: #333;
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.btn-upload {
+  width: 100%;
+  max-width: 400px;
+  padding: 1rem 2rem;
+  border: 2px dashed #667eea;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  background: #f0f4ff;
+  color: #667eea;
+  margin: 0 auto;
+}
+
+.btn-upload:hover:not(:disabled) {
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-upload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #e5e7eb;
+  color: #9ca3af;
+  border-color: #d1d5db;
+}
+
+.upload-info {
+  margin-top: 1rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.upload-success {
+  margin-top: 1rem;
+  color: #10b981;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
