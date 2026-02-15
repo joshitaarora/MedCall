@@ -73,25 +73,34 @@ Respond in JSON format:
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are a post-surgery appointment scheduling expert. Respond only with valid JSON. Consider impact on patient recovery."},
+                    {"role": "system", "content": "You are a post-surgery appointment scheduling expert. Respond ONLY with valid JSON, no other text. Consider impact on patient recovery."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                response_format={"type": "json_object"}
+                temperature=0.3
             )
             
-            result = json.loads(response.choices[0].message.content)
+            content = response.choices[0].message.content.strip()
+            # Try to extract JSON if there's extra text
+            if not content.startswith('{'):
+                start = content.find('{')
+                if start != -1:
+                    content = content[start:]
+            if not content.endswith('}'):
+                end = content.rfind('}')
+                if end != -1:
+                    content = content[:end+1]
+            
+            result = json.loads(content)
             
             if result.get('issue_detected'):
                 issue_type = result.get('issue_type', 'scheduling issue')
                 urgency_emoji = {"low": "📅", "medium": "⚠️", "high": "🔴"}
                 emoji = urgency_emoji.get(result.get('urgency', 'medium'), "📅")
-                
-                # Enhanced message
-                clinical_impact = " [Affects Recovery]" if result.get('clinical_impact') == 'yes' else ""
-                result['message'] = f"{emoji} Post-Surgery Scheduling: {result.get('description', issue_type)}{clinical_impact}"
+                issue_label = issue_type.replace('_', ' ').title()
+                clinical_impact = " · Affects Recovery" if result.get('clinical_impact') == 'yes' else ""
+                result['message'] = f"{emoji} {issue_label}{clinical_impact}"
             
             return result
             

@@ -78,22 +78,32 @@ Be cautious - err on the side of escalation for patient safety."""
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are an emergency medical triage expert for post-surgery patients. Respond only with valid JSON. Patient safety is paramount - when in doubt, escalate."},
+                    {"role": "system", "content": "You are an emergency medical triage expert for post-surgery patients. Respond ONLY with valid JSON, no other text. Patient safety is paramount - when in doubt, escalate."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.2,
-                response_format={"type": "json_object"}
+                temperature=0.2
             )
             
-            result = json.loads(response.choices[0].message.content)
+            content = response.choices[0].message.content.strip()
+            # Try to extract JSON if there's extra text
+            if not content.startswith('{'):
+                start = content.find('{')
+                if start != -1:
+                    content = content[start:]
+            if not content.endswith('}'):
+                end = content.rfind('}')
+                if end != -1:
+                    content = content[:end+1]
+            
+            result = json.loads(content)
             
             if result.get('is_emergency'):
                 severity = result.get('severity', 'urgent')
                 emoji = "🚨" if severity == "critical" else "⚠️" if severity == "urgent" else "🔴"
-                action = result.get('action', 'Immediate medical attention required')
-                result['message'] = f"{emoji} POST-SURGERY EMERGENCY: {result.get('description', 'Immediate attention required')} - {action}"
+                emergency_type = result.get('emergency_type', 'Emergency')
+                result['message'] = f"{emoji} {emergency_type}"
             
             return result
             

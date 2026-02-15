@@ -92,7 +92,7 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        <p>Parallel AI Agents: Post-Surgery AE Detection | Appointment Management | Emergency Detection | Sentiment Analysis</p>
+        <p>Parallel AI Agents: Post-Surgery AE Detection | Appointment Management | Emergency Detection</p>
       </footer>
     </div>
   );

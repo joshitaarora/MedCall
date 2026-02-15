@@ -9,8 +9,8 @@ from flask_socketio import SocketIO, emit
 import os
 from dotenv import load_dotenv
 import json
-import threading
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from agents.ae_detector import AdverseEventDetector
 from agents.appointment_agent import AppointmentAgent
 from agents.emergency_detector import EmergencyDetector
@@ -40,12 +40,15 @@ audio_processor = AudioProcessor(OPENAI_API_KEY)
 active_sessions = {}
 
 class CallSession:
+    ALERT_COOLDOWN_SECONDS = 30
+
     def __init__(self, session_id):
         self.session_id = session_id
         self.transcript = []
         self.alerts = []
         self.start_time = datetime.now()
         self.is_active = True
+        self._last_alert_time = {}  # alert_type -> datetime
         
     def add_transcript(self, text, speaker="user"):
         self.transcript.append({
@@ -54,6 +57,12 @@ class CallSession:
             "text": text
         })
         
+    def can_emit_alert(self, alert_type):
+        last = self._last_alert_time.get(alert_type)
+        if last is None:
+            return True
+        return (datetime.now() - last).total_seconds() >= self.ALERT_COOLDOWN_SECONDS
+
     def add_alert(self, alert_type, message, severity, action=None):
         alert = {
             "timestamp": datetime.now().isoformat(),
@@ -63,92 +72,45 @@ class CallSession:
             "action": action
         }
         self.alerts.append(alert)
+        self._last_alert_time[alert_type] = datetime.now()
         return alert
 
 
 def process_audio_chunk_parallel(session_id, audio_data, transcript_text):
-    """Process audio chunk with all agents in parallel"""
-    print(f"\n{'='*50}")
-    print(f"🔄 PARALLEL PROCESSING STARTED")
-    print(f"Session: {session_id}")
-    print(f"Transcript: {transcript_text[:100]}...")
-    print(f"{'='*50}\n")
-    
+    """Process audio with all agents in parallel using gpt-4o-mini"""
     session = active_sessions.get(session_id)
     if not session:
-        print(f"❌ Session {session_id} not found in parallel processing!")
+        print(f"❌ Session {session_id} not found in processing!")
         return
-    
+
     session.add_transcript(transcript_text)
-    print(f"✅ Transcript added to session")
-    
-    results = {}
-    threads = []
-    
-    # Create threads for parallel processing
-    def run_ae_detection():
-        print("🔍 Starting AE detection...")
-        try:
-            results['ae'] = ae_detector.analyze(transcript_text, session.transcript)
-            print(f"✅ AE detection complete: {results['ae']}")
-        except Exception as e:
-            print(f"❌ AE detection error: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    def run_appointment_check():
-        print("🔍 Starting appointment check...")
-        try:
-            results['appointment'] = appointment_agent.analyze(transcript_text, session.transcript)
-            print(f"✅ Appointment check complete: {results['appointment']}")
-        except Exception as e:
-            print(f"❌ Appointment check error: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    def run_emergency_check():
-        print("🔍 Starting emergency check...")
-        try:
-            results['emergency'] = emergency_detector.analyze(transcript_text, session.transcript)
-            print(f"✅ Emergency check complete: {results['emergency']}")
-        except Exception as e:
-            print(f"❌ Emergency check error: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    def run_sentiment_analysis():
-        print("🔍 Starting sentiment analysis...")
-        try:
-            results['sentiment'] = sentiment_analyzer.analyze(transcript_text, audio_data, session.transcript)
-            print(f"✅ Sentiment analysis complete: {results['sentiment']}")
-        except Exception as e:
-            print(f"❌ Sentiment analysis error: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    # Start all agents in parallel
-    threads = [
-        threading.Thread(target=run_ae_detection),
-        threading.Thread(target=run_appointment_check),
-        threading.Thread(target=run_emergency_check),
-        threading.Thread(target=run_sentiment_analysis)
-    ]
-    
-    print("🚀 Launching 4 parallel threads...")
-    for thread in threads:
-        thread.start()
-    
-    print("⏳ Waiting for threads to complete...")
-    for thread in threads:
-        thread.join()
-    
-    print("✅ All threads complete!")
-    print(f"Results: {results}")
-    
-    # Process results and emit alerts
-    print("📤 Emitting results to frontend...")
-    handle_analysis_results(session_id, results)
-    print("✅ Results emitted!")
+    print(f"🚀 Running 3 agents in parallel for: {transcript_text[:80]}...")
+
+    try:
+        agent_tasks = {
+            'ae':          lambda: ae_detector.analyze(transcript_text, session.transcript),
+            'appointment': lambda: appointment_agent.analyze(transcript_text, session.transcript),
+            'emergency':   lambda: emergency_detector.analyze(transcript_text, session.transcript),
+        }
+
+        results = {}
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {executor.submit(fn): key for key, fn in agent_tasks.items()}
+            for future in as_completed(futures):
+                key = futures[future]
+                try:
+                    results[key] = future.result()
+                    print(f"✅ {key} agent done")
+                except Exception as e:
+                    print(f"❌ {key} agent error: {e}")
+                    results[key] = {"detected": False, "issue_detected": False, "is_emergency": False, "error": str(e)}
+
+        print("✅ All agents complete — emitting results")
+        handle_analysis_results(session_id, results)
+    except Exception as e:
+        print(f"❌ CRITICAL ERROR in processing: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def handle_analysis_results(session_id, results):
@@ -156,6 +118,7 @@ def handle_analysis_results(session_id, results):
     print(f"\n{'='*50}")
     print(f"📊 HANDLING ANALYSIS RESULTS")
     print(f"Session: {session_id}")
+    print(f"Results keys: {list(results.keys())}")
     print(f"{'='*50}\n")
     
     session = active_sessions.get(session_id)
@@ -163,69 +126,74 @@ def handle_analysis_results(session_id, results):
         print(f"❌ Session not found in handle_analysis_results!")
         return
     
+    alerts_emitted = 0
+    
     # Adverse Event Detection
-    if results.get('ae') and results['ae'].get('detected'):
-        print("🔴 AE Alert - Creating and emitting...")
-        alert = session.add_alert(
-            'adverse_event',
-            results['ae']['message'],
-            'high',
-            results['ae'].get('recommended_action')
-        )
-        print(f"Alert created: {alert}")
-        print(f"Emitting to room: {session_id}")
-        socketio.emit('alert', alert, room=session_id)
-        print("✅ AE Alert emitted!")
-    
+    ae_result = results.get('ae', {})
+    if ae_result and ae_result.get('detected') and session.can_emit_alert('adverse_event'):
+        try:
+            alert = session.add_alert(
+                'adverse_event',
+                ae_result.get('message', 'Adverse event detected'),
+                'high',
+                ae_result.get('recommended_action')
+            )
+            socketio.emit('alert', alert)
+            alerts_emitted += 1
+            print("✅ AE Alert emitted!")
+        except Exception as e:
+            print(f"❌ Error emitting AE alert: {e}")
+    elif ae_result and ae_result.get('detected'):
+        print("⏳ AE alert suppressed (cooldown)")
+
     # Appointment Issues
-    if results.get('appointment') and results['appointment'].get('issue_detected'):
-        print("📅 Appointment Alert - Creating and emitting...")
-        alert = session.add_alert(
-            'appointment',
-            results['appointment']['message'],
-            'medium',
-            results['appointment'].get('suggested_action')
-        )
-        print(f"Alert created: {alert}")
-        print(f"Emitting to room: {session_id}")
-        socketio.emit('alert', alert, room=session_id)
-        print("✅ Appointment Alert emitted!")
-    
+    appt_result = results.get('appointment', {})
+    if appt_result and appt_result.get('issue_detected') and session.can_emit_alert('appointment'):
+        try:
+            alert = session.add_alert(
+                'appointment',
+                appt_result.get('message', 'Appointment issue detected'),
+                'medium',
+                appt_result.get('suggested_action')
+            )
+            socketio.emit('alert', alert)
+            alerts_emitted += 1
+            print("✅ Appointment Alert emitted!")
+        except Exception as e:
+            print(f"❌ Error emitting appointment alert: {e}")
+    elif appt_result and appt_result.get('issue_detected'):
+        print("⏳ Appointment alert suppressed (cooldown)")
+
     # Emergency Detection
-    if results.get('emergency') and results['emergency'].get('is_emergency'):
-        print("🚨 Emergency Alert - Creating and emitting...")
-        alert = session.add_alert(
-            'emergency',
-            results['emergency']['message'],
-            'critical',
-            results['emergency'].get('action')
-        )
-        print(f"Alert created: {alert}")
-        print(f"Emitting to room: {session_id}")
-        socketio.emit('alert', alert, room=session_id)
-        print("✅ Emergency Alert emitted!")
+    emerg_result = results.get('emergency', {})
+    if emerg_result and emerg_result.get('is_emergency') and session.can_emit_alert('emergency'):
+        try:
+            alert = session.add_alert(
+                'emergency',
+                emerg_result.get('message', 'Emergency detected'),
+                'critical',
+                emerg_result.get('action')
+            )
+            socketio.emit('alert', alert)
+            alerts_emitted += 1
+            print("✅ Emergency Alert emitted!")
+        except Exception as e:
+            print(f"❌ Error emitting emergency alert: {e}")
+    elif emerg_result and emerg_result.get('is_emergency'):
+        print("⏳ Emergency alert suppressed (cooldown)")
     
-    # Sentiment Mismatch
-    if results.get('sentiment') and results['sentiment'].get('mismatch_detected'):
-        print("🎭 Sentiment Alert - Creating and emitting...")
-        alert = session.add_alert(
-            'sentiment_mismatch',
-            results['sentiment']['message'],
-            'high',
-            results['sentiment'].get('recommended_action')
-        )
-        print(f"Alert created: {alert}")
-        print(f"Emitting to room: {session_id}")
-        socketio.emit('alert', alert, room=session_id)
-        print("✅ Sentiment Alert emitted!")
-    
+
     # Send transcript update
     print("📝 Emitting transcript update...")
     socketio.emit('transcript_update', {
         'text': session.transcript[-1]['text'],
         'timestamp': session.transcript[-1]['timestamp']
-    }, room=session_id)
+    })
     print("✅ Transcript update emitted!")
+    
+    print(f"\n{'='*50}")
+    print(f"✅ ANALYSIS COMPLETE - {alerts_emitted} alert(s) emitted")
+    print(f"{'='*50}\n")
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -359,18 +327,29 @@ def handle_audio_chunk(data):
         traceback.print_exc()  # ADD THIS
         return
     
-    if transcript_text:
+    # Require at least 15 meaningful characters to avoid noise/silence/Whisper hallucinations
+    if transcript_text and len(transcript_text.strip()) >= 15:
         print("✅ Starting parallel agent analysis...")
-        # Process with parallel agents in background thread
-        threading.Thread(
-            target=process_audio_chunk_parallel,
-            args=(session_id, audio_data, transcript_text)
-        ).start()
+        socketio.start_background_task(
+            process_audio_chunk_parallel,
+            session_id, audio_data, transcript_text
+        )
     else:
-        print("⚠️ No transcription generated - transcript_text is empty/None")  # ADD THIS
+        print(f"⚠️ Skipping analysis - transcript too short or empty: '{transcript_text}'")
+        # Still append to transcript so the UI shows the text
+        if transcript_text and transcript_text.strip():
+            session = active_sessions.get(session_id)
+            if session:
+                session.add_transcript(transcript_text.strip())
+                socketio.emit('transcript_update', {
+                    'text': transcript_text.strip(),
+                    'timestamp': datetime.now().isoformat()
+                })
 
 
 if __name__ == '__main__':
     print("🏥 MedCall Backend Starting...")
     print(f"📡 WebSocket server ready for real-time call monitoring")
-    socketio.run(app, debug=True, host='0.0.0.0', port=5001,use_reloader=False)
+    port = int(os.getenv('PORT', 5001))
+    print(f"🚀 Running on port {port}")
+    socketio.run(app, debug=True, host='0.0.0.0', port=port, use_reloader=False)

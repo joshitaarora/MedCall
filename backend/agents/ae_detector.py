@@ -81,16 +81,26 @@ Be conservative - flag anything potentially serious. Better safe than sorry."""
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are a clinical adverse event detection expert for post-surgery patients. Respond only with valid JSON. Be thorough and conservative - patient safety is paramount."},
+                    {"role": "system", "content": "You are a clinical adverse event detection expert for post-surgery patients. Respond ONLY with valid JSON, no other text. Be thorough and conservative - patient safety is paramount."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                response_format={"type": "json_object"}
+                temperature=0.3
             )
             
-            result = json.loads(response.choices[0].message.content)
+            content = response.choices[0].message.content.strip()
+            # Try to extract JSON if there's extra text
+            if not content.startswith('{'):
+                start = content.find('{')
+                if start != -1:
+                    content = content[start:]
+            if not content.endswith('}'):
+                end = content.rfind('}')
+                if end != -1:
+                    content = content[:end+1]
+            
+            result = json.loads(content)
             
             if result.get('detected'):
                 severity_emoji = {"mild": "⚠️", "moderate": "🔴", "severe": "🚨"}

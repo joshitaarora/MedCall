@@ -59,80 +59,33 @@
   color: #d1d5db !important;
 }
 
-.transcript-list {
+.transcript-text {
   flex: 1;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.transcript-entry {
   padding: 1rem;
   background: #f9fafb;
   border-radius: 8px;
   border-left: 3px solid #667eea;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.entry-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.speaker-badge {
-  font-weight: 600;
-  font-size: 0.85rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.speaker-badge.agent {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.entry-timestamp {
-  color: #9ca3af;
-  font-size: 0.8rem;
-}
-
-.entry-text {
   color: #333;
-  line-height: 1.6;
+  line-height: 1.8;
   font-size: 0.95rem;
+  white-space: pre-wrap;
 }
 
-/* Custom scrollbar for transcript */
-.transcript-list::-webkit-scrollbar {
+.transcript-text::-webkit-scrollbar {
   width: 6px;
 }
 
-.transcript-list::-webkit-scrollbar-track {
+.transcript-text::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 3px;
 }
 
-.transcript-list::-webkit-scrollbar-thumb {
+.transcript-text::-webkit-scrollbar-thumb {
   background: #667eea;
   border-radius: 3px;
 }
 
-.transcript-list::-webkit-scrollbar-thumb:hover {
+.transcript-text::-webkit-scrollbar-thumb:hover {
   background: #5568d3;
 }

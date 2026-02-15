@@ -65,7 +65,7 @@ PORT=5001
 ### Frontend Issues
 
 **Cannot connect to backend:**
-- Ensure backend is running on port 5000
+- Ensure backend is running on port 5001
 - Check `REACT_APP_API_URL` in frontend/.env
 
 **Microphone access denied:**

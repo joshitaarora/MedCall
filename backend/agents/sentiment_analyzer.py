@@ -96,14 +96,24 @@ Be thorough but not alarmist. Genuine concern vs. normal recovery anxiety."""
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "You are an expert in detecting hidden distress, coercion, and danger signals in medical calls. Respond only with valid JSON. Balance thoroughness with avoiding false alarms."},
+                    {"role": "system", "content": "You are an expert in detecting hidden distress, coercion, and danger signals in medical calls. Respond ONLY with valid JSON, no other text. Balance thoroughness with avoiding false alarms."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.4,
-                response_format={"type": "json_object"}
+                temperature=0.4
             )
             
-            result = json.loads(response.choices[0].message.content)
+            content = response.choices[0].message.content.strip()
+            # Try to extract JSON if there's extra text
+            if not content.startswith('{'):
+                start = content.find('{')
+                if start != -1:
+                    content = content[start:]
+            if not content.endswith('}'):
+                end = content.rfind('}')
+                if end != -1:
+                    content = content[:end+1]
+            
+            result = json.loads(content)
             
             if result.get('mismatch_detected'):
                 risk = result.get('risk_level', 'medium')

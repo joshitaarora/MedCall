@@ -10,12 +10,13 @@ function TranscriptView({ transcript }) {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [transcript]);
 
+  const fullText = transcript.map(e => e.text?.trim()).filter(Boolean).join(' ');
+
   return (
     <div className="transcript-view">
       <div className="transcript-header">
         <FileText size={24} />
         <h2>Live Transcript</h2>
-        <div className="transcript-count">{transcript.length} entries</div>
       </div>
 
       <div className="transcript-container">
@@ -26,22 +27,8 @@ function TranscriptView({ transcript }) {
             <p className="sub-text">Start recording to see live transcription</p>
           </div>
         ) : (
-          <div className="transcript-list">
-            {transcript.map((entry, index) => (
-              <div key={index} className="transcript-entry">
-                <div className="entry-header">
-                  <div className={`speaker-badge ${entry.speaker}`}>
-                    {entry.speaker === 'user' ? '👤 Patient' : '🎧 Call'}
-                  </div>
-                  <div className="entry-timestamp">
-                    {new Date(entry.timestamp).toLocaleTimeString()}
-                  </div>
-                </div>
-                <div className="entry-text">
-                  {entry.text}
-                </div>
-              </div>
-            ))}
+          <div className="transcript-text">
+            {fullText}
             <div ref={transcriptEndRef} />
           </div>
         )}

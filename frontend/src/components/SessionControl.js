@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Play, Square, Radio } from 'lucide-react';
 import './SessionControl.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 function SessionControl({ onSessionStart, onSessionStop, isActive, sessionId }) {
   const [loading, setLoading] = useState(false);
@@ -99,10 +99,6 @@ function SessionControl({ onSessionStart, onSessionStop, isActive, sessionId }) 
           <div className={`agent-card ${isActive ? 'active' : ''}`}>
             <div className="agent-icon">🚨</div>
             <div className="agent-name">Emergency Detector</div>
-          </div>
-          <div className={`agent-card ${isActive ? 'active' : ''}`}>
-            <div className="agent-icon">🎭</div>
-            <div className="agent-name">Sentiment Analyzer</div>
           </div>
         </div>
       </div>
